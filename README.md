@@ -1,13 +1,13 @@
 # Microservices Avro-BigQuery Project
 
-This project demonstrates JSON to Avro conversion and BigQuery integration with validation using Cucumber tests.
+This project demonstrates JSON creation based on Avro schema and BigQuery integration with validation using Cucumber tests.
 
 ## Architecture Overview
 
 ```
 ┌─────────────────┐    ┌──────────────┐    ┌─────────────────┐    ┌──────────────┐
-│   Cucumber      │    │    Avro      │    │   BigQuery      │    │  Validation  │
-│   Test Data     │───▶│  Conversion  │───▶│   Insertion     │───▶│   Engine     │
+│   Cucumber      │    │ Avro Schema  │    │   BigQuery      │    │  Validation  │
+│   Test Data     │───▶│ JSON Creation│───▶│   Insertion     │───▶│   Engine     │
 │                 │    │              │    │                 │    │              │
 └─────────────────┘    └──────────────┘    └─────────────────┘    └──────────────┘
          │                       │                    │                     │
@@ -15,7 +15,7 @@ This project demonstrates JSON to Avro conversion and BigQuery integration with 
 ┌─────────────────┐    ┌──────────────┐    ┌─────────────────┐    ┌──────────────┐
 │ JSON Structure  │    │ GenericRecord│    │ Nested STRUCT   │    │ Field-by-Field│
 │ • Customer      │    │ • Schema     │    │ • Arrays        │    │ • Expected vs │
-│ • Items[]       │    │ • Validation │    │ • Type Safety   │    │   Actual     │
+│ • Items[]       │    │ • Compliance │    │ • Type Safety   │    │   Actual     │
 │ • Address       │    │ • Type Cast  │    │ • JSON Output   │    │ • PASS/FAIL  │
 └─────────────────┘    └──────────────┘    └─────────────────┘    └──────────────┘
 ```
@@ -383,7 +383,7 @@ item.productId=product_id
 ## Flow
 
 1. JSON data from Cucumber feature file
-2. Convert JSON to Avro format using schema
-3. Load Avro data to BigQuery
+2. Create Avro GenericRecord based on schema structure
+3. Load Avro data to BigQuery as JSON
 4. Retrieve data from BigQuery
 5. Validate retrieved data matches original JSON

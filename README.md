@@ -160,6 +160,7 @@ Item[0] category: PASS | Expected: "Electronics" | Actual: "Electronics"
 ```
 
 ## BigQuery Results
+<img width="1398" height="857" alt="image" src="https://github.com/user-attachments/assets/18186b8f-bc6c-439b-bfea-2707abbeda60" />
 
 **Query Results Table:**
 ```

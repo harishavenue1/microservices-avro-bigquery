@@ -20,6 +20,8 @@ import static org.junit.Assert.assertTrue;
 
 import org.example.util.JsonUtil;
 import com.fasterxml.jackson.databind.JsonNode;
+import java.util.Properties;
+import java.io.InputStream;
 
 public class BigQuerySteps {
     private List<Map<String, Object>> cucumberData;
@@ -30,9 +32,29 @@ public class BigQuerySteps {
     private String datasetId;
     private String tableId;
     private String timestampSuffix;
+    private static final Properties fieldMappings = loadFieldMappings();
     
     public BigQuerySteps() {
         this.bigQueryUtil = new BigQueryUtil();
+    }
+    
+    private static Properties loadFieldMappings() {
+        Properties props = new Properties();
+        try (InputStream is = BigQuerySteps.class.getResourceAsStream("/field-mappings.properties")) {
+            props.load(is);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load field mappings", e);
+        }
+        return props;
+    }
+    
+    private Map<String, String> getFieldMappings(String prefix) {
+        return fieldMappings.stringPropertyNames().stream()
+            .filter(key -> key.startsWith(prefix + "."))
+            .collect(HashMap::new, (map, key) -> map.put(
+                key.substring(prefix.length() + 1), 
+                fieldMappings.getProperty(key)
+            ), HashMap::putAll);
     }
     
     @Given("I have complete order data from Cucumber:")
@@ -134,101 +156,63 @@ public class BigQuerySteps {
     @Then("the retrieved JSON data should match the original data structure")
     public void the_retrieved_json_data_should_match_the_original_data_structure() throws Exception {
         List<String> jsonData = bigQueryUtil.queryDataAsJson(datasetId, tableId, timestampSuffix);
-        
         assertEquals("JSON data count should match", cucumberData.size(), jsonData.size());
         
         for (int i = 0; i < cucumberData.size(); i++) {
-            Map<String, Object> originalData = cucumberData.get(i);
-            String retrievedJson = jsonData.get(i);
-            
-            System.out.println("DEBUG: Comparing record " + i);
-            System.out.println("DEBUG: Original data: " + JsonUtil.toJson(originalData));
-            System.out.println("DEBUG: Retrieved JSON: " + retrievedJson);
-            
-            JsonNode originalJson = JsonUtil.parseJson(JsonUtil.toJson(originalData));
-            JsonNode retrievedJsonNode = JsonUtil.parseJson(retrievedJson);
-            
-            // Compare key fields
-            assertTrue("Order ID should match", 
-                JsonUtil.compareJsonValues(originalJson.get("orderId"), retrievedJsonNode.get("order_id"), "orderId"));
-            
-            // Compare customer data with field name mapping
-            JsonNode originalCustomer = originalJson.get("customer");
-            JsonNode retrievedCustomer = retrievedJsonNode.get("customer");
-            
-            if (originalCustomer != null && retrievedCustomer != null) {
-                assertTrue("Customer ID should match", 
-                    JsonUtil.compareJsonValues(originalCustomer.get("customerId"), retrievedCustomer.get("customer_id"), "customer.customerId"));
-                assertTrue("Customer name should match", 
-                    JsonUtil.compareJsonValues(originalCustomer.get("name"), retrievedCustomer.get("name"), "customer.name"));
-                assertTrue("Customer email should match", 
-                    JsonUtil.compareJsonValues(originalCustomer.get("email"), retrievedCustomer.get("email"), "customer.email"));
-                assertTrue("Customer phone should match", 
-                    JsonUtil.compareJsonValues(originalCustomer.get("phone"), retrievedCustomer.get("phone"), "customer.phone"));
-                assertTrue("Customer loyalty tier should match", 
-                    JsonUtil.compareJsonValues(originalCustomer.get("loyaltyTier"), retrievedCustomer.get("loyalty_tier"), "customer.loyaltyTier"));
-            }
-            
-            // Compare items array
-            JsonNode originalItems = originalJson.get("items");
-            JsonNode retrievedItems = retrievedJsonNode.get("items");
-            
-            if (originalItems != null && retrievedItems != null && originalItems.isArray() && retrievedItems.isArray()) {
-                assertEquals("Items array size should match", originalItems.size(), retrievedItems.size());
-                for (int j = 0; j < originalItems.size(); j++) {
-                    JsonNode originalItem = originalItems.get(j);
-                    JsonNode retrievedItem = retrievedItems.get(j);
-                    
-                    assertTrue("Item product ID should match", 
-                        JsonUtil.compareJsonValues(originalItem.get("productId"), retrievedItem.get("product_id"), "items[" + j + "].productId"));
-                    assertTrue("Item product name should match", 
-                        JsonUtil.compareJsonValues(originalItem.get("productName"), retrievedItem.get("product_name"), "items[" + j + "].productName"));
-                    assertTrue("Item quantity should match", 
-                        JsonUtil.compareJsonValues(originalItem.get("quantity"), retrievedItem.get("quantity"), "items[" + j + "].quantity"));
-                    assertTrue("Item unit price should match", 
-                        JsonUtil.compareJsonValues(originalItem.get("unitPrice"), retrievedItem.get("unit_price"), "items[" + j + "].unitPrice"));
-                    assertTrue("Item category should match", 
-                        JsonUtil.compareJsonValues(originalItem.get("category"), retrievedItem.get("category"), "items[" + j + "].category"));
-                }
-            }
-            
-            // Compare shipping address
-            JsonNode originalAddress = originalJson.get("shippingAddress");
-            JsonNode retrievedAddress = retrievedJsonNode.get("shipping_address");
-            
-            if (originalAddress != null && retrievedAddress != null) {
-                assertTrue("Address street should match", 
-                    JsonUtil.compareJsonValues(originalAddress.get("street"), retrievedAddress.get("street"), "shippingAddress.street"));
-                assertTrue("Address city should match", 
-                    JsonUtil.compareJsonValues(originalAddress.get("city"), retrievedAddress.get("city"), "shippingAddress.city"));
-                assertTrue("Address state should match", 
-                    JsonUtil.compareJsonValues(originalAddress.get("state"), retrievedAddress.get("state"), "shippingAddress.state"));
-                assertTrue("Address zip code should match", 
-                    JsonUtil.compareJsonValues(originalAddress.get("zipCode"), retrievedAddress.get("zip_code"), "shippingAddress.zipCode"));
-                assertTrue("Address country should match", 
-                    JsonUtil.compareJsonValues(originalAddress.get("country"), retrievedAddress.get("country"), "shippingAddress.country"));
-            }
-            
-            // Compare other order fields
-            assertTrue("Order date should match", 
-                JsonUtil.compareJsonValues(originalJson.get("orderDate"), retrievedJsonNode.get("order_date"), "orderDate"));
-            assertTrue("Payment method should match", 
-                JsonUtil.compareJsonValues(originalJson.get("paymentMethod"), retrievedJsonNode.get("payment_method"), "paymentMethod"));
-            assertTrue("Status should match", 
-                JsonUtil.compareJsonValues(originalJson.get("status"), retrievedJsonNode.get("status"), "status"));
-            assertTrue("Metadata should match", 
-                JsonUtil.compareJsonValues(originalJson.get("metadata"), retrievedJsonNode.get("metadata"), "metadata"));
-            assertTrue("Total amount should match", 
-                JsonUtil.compareJsonValues(originalJson.get("totalAmount"), retrievedJsonNode.get("total_amount"), "totalAmount"));
-            assertTrue("Tax amount should match", 
-                JsonUtil.compareJsonValues(originalJson.get("taxAmount"), retrievedJsonNode.get("tax_amount"), "taxAmount"));
-            assertTrue("Discount applied should match", 
-                JsonUtil.compareJsonValues(originalJson.get("discountApplied"), retrievedJsonNode.get("discount_applied"), "discountApplied"));
-            
-            System.out.println("DEBUG: Record " + i + " validation passed");
+            validateRecord(cucumberData.get(i), jsonData.get(i));
         }
     }
     
+    private void validateRecord(Map<String, Object> originalData, String retrievedJson) throws Exception {
+        JsonNode original = JsonUtil.parseJson(JsonUtil.toJson(originalData));
+        JsonNode retrieved = JsonUtil.parseJson(retrievedJson);
+        
+        // Validate root fields
+        validateFields(original,
+                retrieved,
+                getFieldMappings("root"),
+                "");
+        
+        // Validate nested structures
+        validateFields(original.get("customer"),
+                retrieved.get("customer"),
+                getFieldMappings("customer"),
+                "Customer ");
+
+        validateFields(original.get("shippingAddress"),
+                retrieved.get("shipping_address"),
+                getFieldMappings("address"),
+                "Address ");
+        
+        // Validate items array
+        if (original.has("items") && retrieved.has("items")) {
+            JsonNode origItems = original.get("items");
+            JsonNode retrievedItems = retrieved.get("items");
+            assertEquals("Items array size should match", origItems.size(), retrievedItems.size());
+            
+            for (int i = 0; i < origItems.size(); i++) {
+                validateFields(origItems.get(i),
+                        retrievedItems.get(i),
+                        getFieldMappings("item"),
+                        "Item[" + i + "] ");
+            }
+        }
+    }
+    
+    private void validateFields(JsonNode original, JsonNode retrieved, Map<String, String> fieldMappings, String prefix) {
+        if (original == null || retrieved == null) return;
+        
+        fieldMappings.forEach((orig, bq) -> {
+            JsonNode expectedVal = original.get(orig);
+            JsonNode actualVal = retrieved.get(bq);
+            boolean matches = JsonUtil.compareJsonValues(expectedVal, actualVal, orig);
+            String arrow = orig.equals(bq) ? "" : " -> " + bq;
+            System.out.println(prefix + orig + arrow + ": " + (matches ? "PASS" : "FAIL") + 
+                " | Expected: " + expectedVal + " | Actual: " + actualVal);
+            assertTrue(prefix + orig + " should match", matches);
+        });
+    }
+
     @After
     public void cleanup() {
         // No cleanup needed - table should remain

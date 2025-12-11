@@ -1,6 +1,6 @@
-# Microservices Avro-BigQuery Project
+# Avro-BigQuery Validation Project
 
-This project demonstrates JSON creation based on Avro schema and BigQuery integration with validation using Cucumber tests.
+This project demonstrates JSON creation based on Avro schema and BigQuery integration with comprehensive input vs output validation using Cucumber tests.
 
 ## Architecture Overview
 

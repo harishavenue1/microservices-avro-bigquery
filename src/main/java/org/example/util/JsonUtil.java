@@ -18,30 +18,37 @@ public class JsonUtil {
     }
     
     public static boolean compareJsonValues(JsonNode expected, JsonNode actual, String fieldPath) {
-        if (expected == null && actual == null) return true;
+        System.out.println("DEBUG: Comparing field: " + fieldPath);
+        System.out.println("  Expected type: " + (expected != null ? expected.getNodeType() : "null") + ", value: " + expected);
+        System.out.println("  Actual type: " + (actual != null ? actual.getNodeType() : "null") + ", value: " + actual);
+        
+        if (expected == null && actual == null) {
+            System.out.println("  -> Both null, match: true");
+            return true;
+        }
         if (expected == null || actual == null) {
-            System.out.println("DEBUG: Null mismatch at " + fieldPath + " - expected: " + expected + ", actual: " + actual);
+            System.out.println("  -> Null mismatch, match: false");
             return false;
         }
         
         if (expected.isObject() && actual.isObject()) {
+            System.out.println("  -> Object comparison");
             return compareJsonObjects(expected, actual, fieldPath);
         } else if (expected.isArray() && actual.isArray()) {
+            System.out.println("  -> Array comparison");
             return compareJsonArrays(expected, actual, fieldPath);
         } else if (expected.isNumber() && actual.isNumber()) {
+            System.out.println("  -> Numeric comparison");
             // Handle numeric comparisons (Double vs Integer)
             double expectedValue = expected.asDouble();
             double actualValue = actual.asDouble();
             boolean match = Math.abs(expectedValue - actualValue) < 0.001; // Allow small floating point differences
-            if (!match) {
-                System.out.println("DEBUG: Numeric value mismatch at " + fieldPath + " - expected: " + expectedValue + ", actual: " + actualValue);
-            }
+            System.out.println("  -> Expected: " + expectedValue + ", Actual: " + actualValue + ", match: " + match);
             return match;
         } else {
+            System.out.println("  -> Direct value comparison");
             boolean match = expected.equals(actual);
-            if (!match) {
-                System.out.println("DEBUG: Value mismatch at " + fieldPath + " - expected: " + expected + ", actual: " + actual);
-            }
+            System.out.println("  -> Expected: " + expected + ", Actual: " + actual + ", match: " + match);
             return match;
         }
     }

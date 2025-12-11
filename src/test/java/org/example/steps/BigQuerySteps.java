@@ -10,18 +10,21 @@ import org.apache.avro.generic.GenericRecord;
 import org.example.util.AvroUtil;
 import org.example.util.BigQueryUtil;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import org.example.util.JsonUtil;
 import com.fasterxml.jackson.databind.JsonNode;
-import java.util.Properties;
+
 import java.io.InputStream;
+import java.util.stream.Collectors;
+import java.util.LinkedHashSet;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 
 public class BigQuerySteps {
     private List<Map<String, Object>> cucumberData;
@@ -32,30 +35,35 @@ public class BigQuerySteps {
     private String datasetId;
     private String tableId;
     private String timestampSuffix;
-    private static final Properties fieldMappings = loadFieldMappings();
+
     
     public BigQuerySteps() {
         this.bigQueryUtil = new BigQueryUtil();
     }
     
-    private static Properties loadFieldMappings() {
-        Properties props = new Properties();
-        try (InputStream is = BigQuerySteps.class.getResourceAsStream("/field-mappings.properties")) {
-            props.load(is);
+    private static final Map<String, String> fieldMappings = loadFieldMappings();
+    
+    private static Map<String, String> loadFieldMappings() {
+        Map<String, String> props = new LinkedHashMap<>();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                Objects.requireNonNull(BigQuerySteps.class.getResourceAsStream("/field-mappings.properties"))))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (!line.isEmpty() && !line.startsWith("#")) {
+                    String[] parts = line.split("=", 2);
+                    if (parts.length == 2) {
+                        props.put(parts[0], parts[1]);
+                    }
+                }
+            }
         } catch (Exception e) {
             throw new RuntimeException("Failed to load field mappings", e);
         }
         return props;
     }
     
-    private Map<String, String> getFieldMappings(String prefix) {
-        return fieldMappings.stringPropertyNames().stream()
-            .filter(key -> key.startsWith(prefix + "."))
-            .collect(HashMap::new, (map, key) -> map.put(
-                key.substring(prefix.length() + 1), 
-                fieldMappings.getProperty(key)
-            ), HashMap::putAll);
-    }
+
     
     @Given("I have complete order data from Cucumber:")
     public void i_have_complete_order_data_from_cucumber(DataTable dataTable) throws Exception {
@@ -164,55 +172,102 @@ public class BigQuerySteps {
     }
     
     private void validateRecord(Map<String, Object> originalData, String retrievedJson) throws Exception {
+        System.out.println("\n=== Starting Record Validation ===");
+        
+        // Parse JSON data for validation
         JsonNode original = JsonUtil.parseJson(JsonUtil.toJson(originalData));
         JsonNode retrieved = JsonUtil.parseJson(retrievedJson);
         
-        // Validate root fields
-        validateFields(original,
-                retrieved,
-                getFieldMappings("root"),
-                "");
-        
-        // Validate nested structures
-        validateFields(original.get("customer"),
-                retrieved.get("customer"),
-                getFieldMappings("customer"),
-                "Customer ");
-
-        validateFields(original.get("shippingAddress"),
-                retrieved.get("shipping_address"),
-                getFieldMappings("address"),
-                "Address ");
-        
-        // Validate items array
-        if (original.has("items") && retrieved.has("items")) {
-            JsonNode origItems = original.get("items");
-            JsonNode retrievedItems = retrieved.get("items");
-            assertEquals("Items array size should match", origItems.size(), retrievedItems.size());
+        // Validate each field in properties file order
+        fieldMappings.keySet().forEach(field -> {
+            String config = fieldMappings.get(field);
+            System.out.println("\nValidating field: " + field + " with config: " + config);
             
-            for (int i = 0; i < origItems.size(); i++) {
-                validateFields(origItems.get(i),
-                        retrievedItems.get(i),
-                        getFieldMappings("item"),
-                        "Item[" + i + "] ");
+            // Check if field has nested mappings (contains [ or {)
+            if (config.contains("[") || config.contains("{")) {
+                System.out.println("  -> Nested field detected");
+                validateNestedField(original, retrieved, field, config);
+            } else {
+                System.out.println("  -> Simple field detected");
+                // Simple field validation
+                validate(original.get(field), retrieved.get(config), field, field, config);
+            }
+        });
+        
+        System.out.println("\n=== Record Validation Complete ===\n");
+    }
+    
+    private void validateNestedField(JsonNode original, JsonNode retrieved, String field, String config) {
+        // Parse BigQuery field name and mappings
+        String bqField, mappingsStr;
+
+        // shippingAddress=shipping_address:{street=street,city=city,state=state,zipCode=zip_code,country=country}
+        if (config.contains(":")) {
+            String[] parts = config.split(":");
+            bqField = parts[0];
+            mappingsStr = parts[1];
+            System.out.println("    BigQuery field: " + bqField + ", Mappings: " + mappingsStr);
+        }
+        // items=[productId=product_id,productName=product_name,quantity=quantity,unitPrice=unit_price,category=category]
+        else {
+            bqField = field;
+            mappingsStr = config;
+            System.out.println("    Using field name as BigQuery field: " + bqField);
+        }
+        
+        // Extract field mappings from brackets/braces
+        String content = mappingsStr.substring(1, mappingsStr.length() - 1);
+        System.out.println("    Field mappings: " + content);
+        
+        // Get nodes for validation
+        JsonNode origNode = original.get(field);
+        JsonNode retrievedNode = retrieved.get(bqField);
+        
+        // Null check
+        System.out.println("    Null check - Original: " + (origNode != null) + ", Retrieved: " + (retrievedNode != null));
+        assertEquals(field + " should both be present or both be null", origNode != null, retrievedNode != null);
+        
+        if (origNode != null && retrievedNode != null) {
+            if (origNode.isArray()) {
+                System.out.println("    -> Array type detected, size: " + origNode.size());
+                // Validate each mapping for arrays
+                for (String mapping : content.split(",")) {
+                    String[] kv = mapping.split("=");
+                    validateArrayField(origNode, retrievedNode, field, kv);
+                }
+            } else {
+                System.out.println("    -> Object type detected");
+                // Validate each mapping for objects
+                for (String mapping : content.split(",")) {
+                    String[] kv = mapping.split("=");
+                    validateObjectField(origNode, retrievedNode, field, kv);
+                }
             }
         }
     }
     
-    private void validateFields(JsonNode original, JsonNode retrieved, Map<String, String> fieldMappings, String prefix) {
-        if (original == null || retrieved == null) return;
-        
-        fieldMappings.forEach((orig, bq) -> {
-            JsonNode expectedVal = original.get(orig);
-            JsonNode actualVal = retrieved.get(bq);
-            boolean matches = JsonUtil.compareJsonValues(expectedVal, actualVal, orig);
-            String arrow = orig.equals(bq) ? "" : " -> " + bq;
-            System.out.println(prefix + orig + arrow + ": " + (matches ? "PASS" : "FAIL") + 
-                " | Expected: " + expectedVal + " | Actual: " + actualVal);
-            assertTrue(prefix + orig + " should match", matches);
-        });
+    private void validateArrayField(JsonNode origNode, JsonNode retrievedNode, String field, String[] kv) {
+        System.out.println("      Array validation - mapping: " + kv[0] + " -> " + kv[1]);
+        assertEquals(field + " array size should match", origNode.size(), retrievedNode.size());
+        for (int i = 0; i < origNode.size(); i++) {
+            String itemName = field.substring(0, field.length() - 1) + "[" + i + "] " + kv[0];
+            validate(origNode.get(i).get(kv[0]), retrievedNode.get(i).get(kv[1]), itemName, kv[0], kv[1]);
+        }
     }
-
+    
+    private void validateObjectField(JsonNode origNode, JsonNode retrievedNode, String field, String[] kv) {
+        System.out.println("      Object validation - mapping: " + kv[0] + " -> " + kv[1]);
+        String prefix = field.substring(0, 1).toUpperCase() + field.substring(1) + " ";
+        validate(origNode.get(kv[0]), retrievedNode.get(kv[1]), prefix + kv[0], kv[0], kv[1]);
+    }
+    
+    private void validate(JsonNode expected, JsonNode actual, String name, String origField, String bqField) {
+        boolean matches = JsonUtil.compareJsonValues(expected, actual, origField);
+        String arrow = origField.equals(bqField) ? "" : " -> " + bqField;
+        System.out.println(name + arrow + ": " + (matches ? "PASS" : "FAIL") + " | Expected: " + expected + " | Actual: " + actual);
+        assertTrue(name + " should match", matches);
+    }
+  
     @After
     public void cleanup() {
         // No cleanup needed - table should remain

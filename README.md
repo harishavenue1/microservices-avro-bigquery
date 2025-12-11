@@ -96,7 +96,65 @@ This project demonstrates JSON to Avro conversion and BigQuery integration with 
 - `src/main/java/org/example/util/` - Utility classes for Avro and BigQuery
 - `src/test/resources/features/` - Cucumber feature files
 - `src/test/java/org/example/steps/` - Cucumber step definitions
-- `src/test/resources/field-mappings.properties` - Field mapping configuration
+- `src/test/resources/field-mappings.properties` - **Field mapping configuration (see detailed explanation below)**
+
+## Field Mapping Configuration
+
+The `field-mappings.properties` file controls the validation order and field mappings between JSON and BigQuery. It supports three formats:
+
+### 1. Simple Field Mapping
+```properties
+# Format: fieldName=bigQueryFieldName
+orderId=order_id
+orderDate=order_date
+paymentMethod=payment_method
+status=status
+metadata=metadata
+totalAmount=total_amount
+taxAmount=tax_amount
+discountApplied=discount_applied
+```
+
+### 2. Nested Object Mapping
+```properties
+# Format: fieldName=[subField1=bqField1,subField2=bqField2,...]
+customer=[customerId=customer_id,name=name,email=email,phone=phone,loyaltyTier=loyalty_tier]
+```
+
+### 3. Nested Object with Custom BigQuery Field
+```properties
+# Format: fieldName=bqFieldName:{subField1=bqField1,subField2=bqField2,...}
+shippingAddress=shipping_address:{street=street,city=city,state=state,zipCode=zip_code,country=country}
+```
+
+### 4. Array Mapping
+```properties
+# Format: fieldName=[itemField1=bqField1,itemField2=bqField2,...]
+items=[productId=product_id,productName=product_name,quantity=quantity,unitPrice=unit_price,category=category]
+```
+
+### Complete Configuration Example
+```properties
+# Validation order with embedded field mappings
+orderId=order_id
+customer=[customerId=customer_id,name=name,email=email,phone=phone,loyaltyTier=loyalty_tier]
+items=[productId=product_id,productName=product_name,quantity=quantity,unitPrice=unit_price,category=category]
+orderDate=order_date
+shippingAddress=shipping_address:{street=street,city=city,state=state,zipCode=zip_code,country=country}
+paymentMethod=payment_method
+status=status
+metadata=metadata
+totalAmount=total_amount
+taxAmount=tax_amount
+discountApplied=discount_applied
+```
+
+### Key Features:
+- **Order Preservation**: Fields are validated in the exact order they appear in the file
+- **Automatic Detection**: Engine automatically detects simple fields, objects, and arrays
+- **Flexible Mapping**: Supports different BigQuery field names using `bqField:{}` syntax
+- **Nested Support**: Handles complex nested structures and arrays
+- **Maintainable**: All configuration in one file, no code changes needed for new fields
 
 ## Test Execution Flow
 
@@ -133,30 +191,106 @@ DEBUG: JSON data [0]: {"order_id":"ORD001_1703123456789","order_date":"2023-12-0
 ```
 
 ### 5. Validation Phase
+
+#### Detailed Validation Flow
+```
+=== Starting Record Validation ===
+
+Validating field: orderId with config: order_id
+  -> Simple field detected
+DEBUG: Comparing field: orderId
+  Expected type: STRING, value: "ORD001_1703123456789"
+  Actual type: STRING, value: "ORD001_1703123456789"
+  -> Direct value comparison
+  -> Expected: "ORD001_1703123456789", Actual: "ORD001_1703123456789", match: true
+orderId -> order_id: PASS | Expected: "ORD001_1703123456789" | Actual: "ORD001_1703123456789"
+
+Validating field: customer with config: [customerId=customer_id,name=name,email=email,phone=phone,loyaltyTier=loyalty_tier]
+  -> Nested field detected
+    Using field name as BigQuery field: customer
+    Field mappings: customerId=customer_id,name=name,email=email,phone=phone,loyaltyTier=loyalty_tier
+    Null check - Original: true, Retrieved: true
+    -> Object type detected
+      Object validation - mapping: customerId -> customer_id
+DEBUG: Comparing field: customerId
+  Expected type: STRING, value: "CUST001"
+  Actual type: STRING, value: "CUST001"
+  -> Direct value comparison
+  -> Expected: "CUST001", Actual: "CUST001", match: true
+Customer customerId -> customer_id: PASS | Expected: "CUST001" | Actual: "CUST001"
+
+      Object validation - mapping: name -> name
+DEBUG: Comparing field: name
+  Expected type: STRING, value: "John Doe"
+  Actual type: STRING, value: "John Doe"
+  -> Direct value comparison
+  -> Expected: "John Doe", Actual: "John Doe", match: true
+Customer name: PASS | Expected: "John Doe" | Actual: "John Doe"
+
+Validating field: items with config: [productId=product_id,productName=product_name,quantity=quantity,unitPrice=unit_price,category=category]
+  -> Nested field detected
+    Using field name as BigQuery field: items
+    Field mappings: productId=product_id,productName=product_name,quantity=quantity,unitPrice=unit_price,category=category
+    Null check - Original: true, Retrieved: true
+    -> Array type detected, size: 1
+      Array validation - mapping: productId -> product_id
+DEBUG: Comparing field: productId
+  Expected type: STRING, value: "PROD001"
+  Actual type: STRING, value: "PROD001"
+  -> Direct value comparison
+  -> Expected: "PROD001", Actual: "PROD001", match: true
+item[0] productId -> product_id: PASS | Expected: "PROD001" | Actual: "PROD001"
+
+      Array validation - mapping: unitPrice -> unit_price
+DEBUG: Comparing field: unitPrice
+  Expected type: NUMBER, value: 999.99
+  Actual type: NUMBER, value: 999.99
+  -> Numeric comparison
+  -> Expected: 999.99, Actual: 999.99, match: true
+item[0] unitPrice -> unit_price: PASS | Expected: 999.99 | Actual: 999.99
+
+Validating field: shippingAddress with config: shipping_address:{street=street,city=city,state=state,zipCode=zip_code,country=country}
+  -> Nested field detected
+    BigQuery field: shipping_address, Mappings: {street=street,city=city,state=state,zipCode=zip_code,country=country}
+    Field mappings: street=street,city=city,state=state,zipCode=zip_code,country=country
+    Null check - Original: true, Retrieved: true
+    -> Object type detected
+      Object validation - mapping: zipCode -> zip_code
+DEBUG: Comparing field: zipCode
+  Expected type: STRING, value: "10001"
+  Actual type: STRING, value: "10001"
+  -> Direct value comparison
+  -> Expected: "10001", Actual: "10001", match: true
+ShippingAddress zipCode -> zip_code: PASS | Expected: "10001" | Actual: "10001"
+
+=== Record Validation Complete ===
+```
+
+#### Summary Output
 ```
 orderId -> order_id: PASS | Expected: "ORD001_1703123456789" | Actual: "ORD001_1703123456789"
-orderDate -> order_date: PASS | Expected: "2023-12-01" | Actual: "2023-12-01"
-paymentMethod -> payment_method: PASS | Expected: "Credit Card" | Actual: "Credit Card"
-totalAmount -> total_amount: PASS | Expected: 1999.98 | Actual: 1999.98
-taxAmount -> tax_amount: PASS | Expected: 159.99 | Actual: 159.99
-discountApplied -> discount_applied: PASS | Expected: true | Actual: true
-status: PASS | Expected: "Shipped" | Actual: "Shipped"
-metadata: PASS | Expected: "Priority Order" | Actual: "Priority Order"
 Customer customerId -> customer_id: PASS | Expected: "CUST001" | Actual: "CUST001"
-Customer loyaltyTier -> loyalty_tier: PASS | Expected: "Gold" | Actual: "Gold"
 Customer name: PASS | Expected: "John Doe" | Actual: "John Doe"
 Customer email: PASS | Expected: "john@example.com" | Actual: "john@example.com"
 Customer phone: PASS | Expected: "555-1234" | Actual: "555-1234"
-Address zipCode -> zip_code: PASS | Expected: "10001" | Actual: "10001"
-Address street: PASS | Expected: "123 Main St" | Actual: "123 Main St"
-Address city: PASS | Expected: "New York" | Actual: "New York"
-Address state: PASS | Expected: "NY" | Actual: "NY"
-Address country: PASS | Expected: "USA" | Actual: "USA"
-Item[0] productId -> product_id: PASS | Expected: "PROD001" | Actual: "PROD001"
-Item[0] productName -> product_name: PASS | Expected: "Laptop" | Actual: "Laptop"
-Item[0] unitPrice -> unit_price: PASS | Expected: 999.99 | Actual: 999.99
-Item[0] quantity: PASS | Expected: 2 | Actual: 2
-Item[0] category: PASS | Expected: "Electronics" | Actual: "Electronics"
+Customer loyaltyTier -> loyalty_tier: PASS | Expected: "Gold" | Actual: "Gold"
+item[0] productId -> product_id: PASS | Expected: "PROD001" | Actual: "PROD001"
+item[0] productName -> product_name: PASS | Expected: "Laptop" | Actual: "Laptop"
+item[0] quantity: PASS | Expected: 2 | Actual: 2
+item[0] unitPrice -> unit_price: PASS | Expected: 999.99 | Actual: 999.99
+item[0] category: PASS | Expected: "Electronics" | Actual: "Electronics"
+orderDate -> order_date: PASS | Expected: "2023-12-01" | Actual: "2023-12-01"
+ShippingAddress street: PASS | Expected: "123 Main St" | Actual: "123 Main St"
+ShippingAddress city: PASS | Expected: "New York" | Actual: "New York"
+ShippingAddress state: PASS | Expected: "NY" | Actual: "NY"
+ShippingAddress zipCode -> zip_code: PASS | Expected: "10001" | Actual: "10001"
+ShippingAddress country: PASS | Expected: "USA" | Actual: "USA"
+paymentMethod -> payment_method: PASS | Expected: "Credit Card" | Actual: "Credit Card"
+status: PASS | Expected: "Shipped" | Actual: "Shipped"
+metadata: PASS | Expected: "Priority Order" | Actual: "Priority Order"
+totalAmount -> total_amount: PASS | Expected: 1999.98 | Actual: 1999.98
+taxAmount -> tax_amount: PASS | Expected: 159.99 | Actual: 159.99
+discountApplied -> discount_applied: PASS | Expected: true | Actual: true
 ```
 
 ## BigQuery Results

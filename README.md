@@ -10,15 +10,64 @@ This project demonstrates JSON to Avro conversion and BigQuery integration with 
    - Create service account credentials
    - Set `GOOGLE_APPLICATION_CREDENTIALS` environment variable
 
-2. **Configuration**:
+2. **BigQuery Table Setup**:
+   ```sql
+   -- Complex BigQuery Schema for Nested Order Structure
+   -- Supports nested JSON with STRUCT and ARRAY types
+   
+   CREATE OR REPLACE TABLE test_dataset.orders (
+     order_id STRING NOT NULL,
+     
+     -- Nested customer object
+     customer STRUCT<
+       customer_id STRING,
+       name STRING,
+       email STRING,
+       phone STRING,
+       loyalty_tier STRING
+     >,
+     
+     -- Array of order items
+     items ARRAY<STRUCT<
+       product_id STRING,
+       product_name STRING,
+       quantity INT64,
+       unit_price FLOAT64,
+       category STRING
+     >>,
+     
+     order_date STRING,
+     
+     -- Nested shipping address
+     shipping_address STRUCT<
+       street STRING,
+       city STRING,
+       state STRING,
+       zip_code STRING,
+       country STRING
+     >,
+     
+     payment_method STRING,
+     status STRING,
+     metadata STRING,
+     total_amount FLOAT64,
+     tax_amount FLOAT64,
+     discount_applied BOOL
+   )
+   OPTIONS(
+     description="Complex orders table with nested structures for advanced validation"
+   );
+   ```
+
+3. **Configuration**:
    - Update `src/main/resources/application.properties` with your project ID
 
-3. **Build**:
+4. **Build**:
    ```bash
    mvn clean compile
    ```
 
-4. **Run Tests**:
+5. **Run Tests**:
    ```bash
    mvn test
    ```

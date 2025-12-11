@@ -1,0 +1,32 @@
+[
+  {
+    "name": "user_id",
+    "type": "INTEGER",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "user_name",
+    "type": "STRING",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "user_email",
+    "type": "STRING",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "payment_amount",
+    "type": "FLOAT",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "payment_method",
+    "type": "STRING",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "transaction_id",
+    "type": "STRING",
+    "mode": "REQUIRED"
+  }
+]

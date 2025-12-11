@@ -1,0 +1,60 @@
+{
+  "type": "record",
+  "name": "Order",
+  "namespace": "org.example.model",
+  "fields": [
+    {"name": "orderId", "type": "string"},
+    {
+      "name": "customer",
+      "type": {
+        "type": "record",
+        "name": "Customer",
+        "fields": [
+          {"name": "customerId", "type": "string"},
+          {"name": "name", "type": "string"},
+          {"name": "email", "type": "string"},
+          {"name": "phone", "type": "string"},
+          {"name": "loyaltyTier", "type": "string"}
+        ]
+      }
+    },
+    {
+      "name": "items",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "Item",
+          "fields": [
+            {"name": "productId", "type": "string"},
+            {"name": "productName", "type": "string"},
+            {"name": "quantity", "type": "long"},
+            {"name": "unitPrice", "type": "double"},
+            {"name": "category", "type": "string"}
+          ]
+        }
+      }
+    },
+    {"name": "orderDate", "type": "string"},
+    {
+      "name": "shippingAddress",
+      "type": {
+        "type": "record",
+        "name": "Address",
+        "fields": [
+          {"name": "street", "type": "string"},
+          {"name": "city", "type": "string"},
+          {"name": "state", "type": "string"},
+          {"name": "zipCode", "type": "string"},
+          {"name": "country", "type": "string"}
+        ]
+      }
+    },
+    {"name": "paymentMethod", "type": "string"},
+    {"name": "status", "type": "string"},
+    {"name": "metadata", "type": "string"},
+    {"name": "totalAmount", "type": "double"},
+    {"name": "taxAmount", "type": "double"},
+    {"name": "discountApplied", "type": "boolean"}
+  ]
+}

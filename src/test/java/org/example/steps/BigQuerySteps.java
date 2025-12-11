@@ -190,7 +190,7 @@ public class BigQuerySteps {
             } else {
                 System.out.println("  -> Simple field detected");
                 // Simple field validation
-                validate(original.get(field), retrieved.get(config), field, field, config);
+                validate(original.get(field), retrieved.get(config), field, config);
             }
         });
         
@@ -251,19 +251,19 @@ public class BigQuerySteps {
         assertEquals(field + " array size should match", origNode.size(), retrievedNode.size());
         for (int i = 0; i < origNode.size(); i++) {
             String itemName = field.substring(0, field.length() - 1) + "[" + i + "] " + kv[0];
-            validate(origNode.get(i).get(kv[0]), retrievedNode.get(i).get(kv[1]), itemName, kv[0], kv[1]);
+            validate(origNode.get(i).get(kv[0]), retrievedNode.get(i).get(kv[1]), itemName, kv[1]);
         }
     }
     
     private void validateObjectField(JsonNode origNode, JsonNode retrievedNode, String field, String[] kv) {
         System.out.println("      Object validation - mapping: " + kv[0] + " -> " + kv[1]);
         String prefix = field.substring(0, 1).toUpperCase() + field.substring(1) + " ";
-        validate(origNode.get(kv[0]), retrievedNode.get(kv[1]), prefix + kv[0], kv[0], kv[1]);
+        validate(origNode.get(kv[0]), retrievedNode.get(kv[1]), prefix + kv[0], kv[1]);
     }
     
-    private void validate(JsonNode expected, JsonNode actual, String name, String origField, String bqField) {
-        boolean matches = JsonUtil.compareJsonValues(expected, actual, origField);
-        String arrow = origField.equals(bqField) ? "" : " -> " + bqField;
+    private void validate(JsonNode expected, JsonNode actual, String name, String bqField) {
+        boolean matches = JsonUtil.compareJsonValues(expected, actual, name);
+        String arrow = name.equals(bqField) ? "" : " -> " + bqField;
         System.out.println(name + arrow + ": " + (matches ? "PASS" : "FAIL") + " | Expected: " + expected + " | Actual: " + actual);
         assertTrue(name + " should match", matches);
     }

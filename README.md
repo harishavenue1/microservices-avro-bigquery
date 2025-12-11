@@ -161,9 +161,17 @@ Item[0] category: PASS | Expected: "Electronics" | Actual: "Electronics"
 
 ## BigQuery Results
 
-![BigQuery Results](https://github.com/user-attachments/assets/bigquery-results.png)
+**Query Results Table:**
+```
+| order_id              | customer.customer_id | customer.name | customer.email      | customer.phone | customer.loyalty_tier | items.product_id |
+|-----------------------|---------------------|---------------|---------------------|----------------|----------------------|------------------|
+| ORD_001_1765425681089 | CUST_001           | John Doe      | john@example.com    | +1-555-0123    | GOLD                 | PROD_001         |
+| ORD_002_1765425681089 | CUST_002           | Jane Smith    | jane@example.com    | +1-555-0456    | SILVER               | PROD_002         |
+| ORD_001_1765426661198 | CUST_001           | John Doe      | john@example.com    | +1-555-0123    | GOLD                 | PROD_001         |
+| ORD_002_1765426661198 | CUST_002           | Jane Smith    | jane@example.com    | +1-555-0456    | SILVER               | PROD_002         |
+```
 
-*Screenshot showing successful data insertion and querying of nested structures in BigQuery with proper field mapping validation*
+*BigQuery successfully stores and queries nested structures with proper field mapping validation. The timestamp-based order IDs demonstrate multiple successful test runs.*
 
 ## Components Deep Dive
 

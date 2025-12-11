@@ -2,6 +2,24 @@
 
 This project demonstrates JSON to Avro conversion and BigQuery integration with validation using Cucumber tests.
 
+## Architecture Overview
+
+```
+┌─────────────────┐    ┌──────────────┐    ┌─────────────────┐    ┌──────────────┐
+│   Cucumber      │    │    Avro      │    │   BigQuery      │    │  Validation  │
+│   Test Data     │───▶│  Conversion  │───▶│   Insertion     │───▶│   Engine     │
+│                 │    │              │    │                 │    │              │
+└─────────────────┘    └──────────────┘    └─────────────────┘    └──────────────┘
+         │                       │                    │                     │
+         ▼                       ▼                    ▼                     ▼
+┌─────────────────┐    ┌──────────────┐    ┌─────────────────┐    ┌──────────────┐
+│ JSON Structure  │    │ GenericRecord│    │ Nested STRUCT   │    │ Field-by-Field│
+│ • Customer      │    │ • Schema     │    │ • Arrays        │    │ • Expected vs │
+│ • Items[]       │    │ • Validation │    │ • Type Safety   │    │   Actual     │
+│ • Address       │    │ • Type Cast  │    │ • JSON Output   │    │ • PASS/FAIL  │
+└─────────────────┘    └──────────────┘    └─────────────────┘    └──────────────┘
+```
+
 ## Setup
 
 1. **Google Cloud Setup**:
@@ -140,6 +158,12 @@ Item[0] unitPrice -> unit_price: PASS | Expected: 999.99 | Actual: 999.99
 Item[0] quantity: PASS | Expected: 2 | Actual: 2
 Item[0] category: PASS | Expected: "Electronics" | Actual: "Electronics"
 ```
+
+## BigQuery Results
+
+![BigQuery Results](https://github.com/user-attachments/assets/bigquery-results.png)
+
+*Screenshot showing successful data insertion and querying of nested structures in BigQuery with proper field mapping validation*
 
 ## Components Deep Dive
 

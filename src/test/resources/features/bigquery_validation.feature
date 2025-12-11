@@ -11,4 +11,4 @@ Feature: BigQuery Data Validation
     When I create Avro request from schema using the data
     And I load the Avro request to BigQuery table "test_dataset.orders"
     Then I should retrieve the same data from BigQuery
-    And the retrieved data should match the original Cucumber data
+    And the retrieved JSON data should match the original data structure
